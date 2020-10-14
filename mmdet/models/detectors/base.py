@@ -127,7 +127,9 @@ class BaseDetector(nn.Module, metaclass=ABCMeta):
                 augs (multiscale, flip, etc.) and the inner list indicates
                 images in a batch.
         """
+        #imgs = [imgs]
         for var, name in [(imgs, 'imgs'), (img_metas, 'img_metas')]:
+            #print ("+++++++++++!!!!!!!!!!",var)
             if not isinstance(var, list):
                 raise TypeError(f'{name} must be a list, but got {type(var)}')
 
@@ -200,6 +202,7 @@ class BaseDetector(nn.Module, metaclass=ABCMeta):
             if dist.is_available() and dist.is_initialized():
                 loss_value = loss_value.data.clone()
                 dist.all_reduce(loss_value.div_(dist.get_world_size()))
+            #print (loss_name,loss_value)
             log_vars[loss_name] = loss_value.item()
 
         return loss, log_vars

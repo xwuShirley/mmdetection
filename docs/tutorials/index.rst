@@ -2,8 +2,8 @@
    :maxdepth: 2
 
    finetune.md
-   customize_dataset.md
+   new_dataset.md
    data_pipeline.md
-   customize_models.md
+   new_modules.md
    customize_runtime.md
    customize_losses.md

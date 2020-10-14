@@ -48,7 +48,17 @@ class BBoxTestMixin(object):
                 rescale=rescale,
                 cfg=rcnn_test_cfg)
             return det_bboxes, det_labels
-
+    def simple_test_bboxes_feature(self,
+                           x,
+                           img_metas,
+                           proposals,
+                           rcnn_test_cfg,
+                           rescale=False):
+        """Test only det bboxes without augmentation."""
+        rois = bbox2roi(proposals)
+        bbox_results = self._bbox_forward(x, rois)
+        return bbox_results
+        
     def simple_test_bboxes(self,
                            x,
                            img_metas,

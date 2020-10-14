@@ -187,6 +187,10 @@ class CascadeRoIHead(BaseRoIHead, BBoxTestMixin, MaskTestMixin):
         """Run forward function and calculate loss for mask head in
         training."""
         pos_rois = bbox2roi([res.pos_bboxes for res in sampling_results])
+        if len(pos_rois) == 0:
+            # If there are no predicted and/or truth boxes, then we cannot
+            # compute head / mask losses
+            return dict(loss_mask=None)
         mask_results = self._mask_forward(stage, x, pos_rois)
 
         mask_targets = self.mask_head[stage].get_targets(
@@ -267,9 +271,11 @@ class CascadeRoIHead(BaseRoIHead, BBoxTestMixin, MaskTestMixin):
                 mask_results = self._mask_forward_train(
                     i, x, sampling_results, gt_masks, rcnn_train_cfg,
                     bbox_results['bbox_feats'])
-                for name, value in mask_results['loss_mask'].items():
-                    losses[f's{i}.{name}'] = (
-                        value * lw if 'loss' in name else value)
+                # TODO: Support empty tensor input. #2280
+                if mask_results['loss_mask'] is not None:
+                    for name, value in mask_results['loss_mask'].items():
+                        losses[f's{i}.{name}'] = (
+                            value * lw if 'loss' in name else value)
 
             # refine bboxes
             if i < self.num_stages - 1:

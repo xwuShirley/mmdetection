@@ -77,6 +77,7 @@ class BBoxHead(nn.Module):
         if self.with_avg_pool:
             x = self.avg_pool(x)
         x = x.view(x.size(0), -1)
+        #print ("!!!!!!!!!!!!!!!!!!!!!what is x",x.size())
         cls_score = self.fc_cls(x) if self.with_cls else None
         bbox_pred = self.fc_reg(x) if self.with_reg else None
         return cls_score, bbox_pred
@@ -157,6 +158,8 @@ class BBoxHead(nn.Module):
                     label_weights,
                     avg_factor=avg_factor,
                     reduction_override=reduction_override)
+                #print ('cls_score',cls_score.size())
+
                 losses['acc'] = accuracy(cls_score, labels)
         if bbox_pred is not None:
             bg_class_ind = self.num_classes
@@ -181,7 +184,7 @@ class BBoxHead(nn.Module):
                     avg_factor=bbox_targets.size(0),
                     reduction_override=reduction_override)
             else:
-                losses['loss_bbox'] = bbox_pred[pos_inds].sum()
+                losses['loss_bbox'] = bbox_pred.sum() * 0
         return losses
 
     @force_fp32(apply_to=('cls_score', 'bbox_pred'))

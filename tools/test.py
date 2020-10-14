@@ -108,7 +108,7 @@ def main():
 
     if args.out is not None and not args.out.endswith(('.pkl', '.pickle')):
         raise ValueError('The output file must be a pkl file.')
-
+    print ("!!!!!!!!!!!!!!!!!!!!!!!!!!",args.config)
     cfg = Config.fromfile(args.config)
     if args.cfg_options is not None:
         cfg.merge_from_dict(args.cfg_options)
@@ -157,7 +157,9 @@ def main():
         dist=distributed,
         shuffle=False)
 
+
     # build the model and load checkpoint
+    print (cfg.model,"\n",cfg.test_cfg)
     model = build_detector(cfg.model, train_cfg=None, test_cfg=cfg.test_cfg)
     fp16_cfg = cfg.get('fp16', None)
     if fp16_cfg is not None:
@@ -174,8 +176,11 @@ def main():
 
     if not distributed:
         model = MMDataParallel(model, device_ids=[0])
+        #print("!!!!!!!!!!!!! here")
+        #print (model)
         outputs = single_gpu_test(model, data_loader, args.show, args.show_dir,
                                   args.show_score_thr)
+                                  
     else:
         model = MMDistributedDataParallel(
             model.cuda(),
