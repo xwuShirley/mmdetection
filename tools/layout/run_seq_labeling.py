@@ -509,6 +509,9 @@ def main():  # noqa C901
         "--weight_decay", default=0.0, type=float, help="Weight decay if we apply some."
     )
     parser.add_argument(
+        "--scale", default=0.5, type=float, help="scale if we apply some."
+    )    
+    parser.add_argument(
         "--adam_epsilon", default=1e-8, type=float, help="Epsilon for Adam optimizer."
     )
     parser.add_argument(
@@ -700,16 +703,17 @@ def main():  # noqa C901
 
     # Training
     if args.do_train:
+        img_size = 500
         transform_train = transforms.Compose([
-            transforms.Resize(250*2),
-            transforms.RandomSizedCrop(224*2),
-            transforms.RandomHorizontalFlip(),
+            #transforms.Resize(img_size),
+            # transforms.RandomSizedCrop(224*2),
+            # transforms.RandomHorizontalFlip(),
             transforms.ToTensor(),
-            transforms.Normalize([0.485,0.456,0.406], [0.229,0.224,0.225])])
+            #transforms.Normalize([0.485,0.456,0.406], [0.229,0.224,0.225])
+            ])
 
         train_dataset = IMFunsdDataset(
-            args, tokenizer, labels, pad_token_label_id, mode="train",transform=transform_train
-        )
+            args, tokenizer, labels, pad_token_label_id, mode="train",transform=transform_train,scale=args.scale)
         #print ("DONE!eval_dataset")
         global_step, tr_loss = train(
             args, train_dataset, model, tokenizer, labels, pad_token_label_id

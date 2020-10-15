@@ -12,7 +12,8 @@ logger = logging.getLogger(__name__)
 
 
 class IMFunsdDataset(Dataset):
-    def __init__(self, args, tokenizer, labels, pad_token_label_id, mode, transform=None):
+    def __init__(self, args, tokenizer, labels, pad_token_label_id, mode, transform=None,scale=None):
+        self.scale = scale
         if args.local_rank not in [-1, 0] and mode == "train":
             torch.distributed.barrier()  # Make sure only the first process in distributed training process the dataset, and the others will use the cache
 
@@ -71,12 +72,21 @@ class IMFunsdDataset(Dataset):
         self.all_label_ids = torch.tensor(
             [f.label_ids for f in features], dtype=torch.long
         )
-        self.all_bboxes = torch.tensor([f.boxes for f in features], dtype=torch.long)
-        self.gt_bboxes = torch.tensor([f.actual_bboxes for f in features], dtype=torch.long)
-        if mode == "train":
-            self.image_paths = [os.path.join(args.data_dir+'/training_data/images',f.file_name) for f in features]
+        # for f in features:
+        #    print (f.boxes)
+        #    for x in f.boxes:
+        #        print ("~~~~~~~~~~~~~~~~~~~~~",x)
+        #        print (self.scale*x)
+        if not self.scale:
+            self.all_bboxes = torch.tensor([f.boxes for f in features], dtype=torch.long)
+            self.gt_bboxes = torch.tensor([f.actual_bboxes for f in features], dtype=torch.long)
         else:
-            self.image_paths = [os.path.join(args.data_dir+'/testing_data/images',f.file_name) for f in features]
+            self.all_bboxes = torch.tensor([self.scale*np.array(f.boxes) for f in features], dtype=torch.long)
+            self.gt_bboxes = torch.tensor([self.scale*np.array(f.actual_bboxes) for f in features], dtype=torch.long)
+        if mode == "train":
+            self.image_paths = [os.path.join(args.data_dir,'training_data/images',f.file_name) for f in features]
+        else:
+            self.image_paths = [os.path.join(args.data_dir,'testing_data/images',f.file_name) for f in features]
         self.transform = transform 
         # print ("image_paths,image_paths,image_paths", self.image_paths)
         # print ("gt_bboxes",  self.gt_bboxes)
@@ -89,9 +99,15 @@ class IMFunsdDataset(Dataset):
         img = Image.open(image_path)
         if len(np.array(img).shape) == 2:
             img = np.stack([img]*3,2)
-            img = Image.fromarray(img,mode='RGB')            
+            img = Image.fromarray(img,mode='RGB')   
+        if self.scale:
+            width, height = img.size  
+            newsize = (int(width*self.scale), int(height*self.scale))
+            img = img.resize(newsize) 
+        
         img = self.transform(img)
-        #print (img)
+        # print (img.size())
+        # print (self.gt_bboxes[index])
         return (
             self.all_input_ids[index],
             self.all_input_mask[index],
@@ -182,8 +198,8 @@ def read_examples_from_file(data_dir, mode):
                             page_size=page_size,
                         )
                     )
-                    print(file_name)
-                    break
+                    # print(file_name)
+                    # break
                     guid_index += 1
                     words = []
                     boxes = []
