@@ -25,11 +25,11 @@ class LayoutlmConfig(BertConfig):
 class LayoutlmEmbeddings(nn.Module):
     def __init__(self, config):
         super(LayoutlmEmbeddings, self).__init__()
-        print ("!!!!!!!!!!!!!!!!!!!!!",config.vocab_size, config.hidden_size,)
+        #print ("!!!!!!!!!!!!!!!!!!!!!",config.vocab_size, config.hidden_size,)
         self.word_embeddings = nn.Embedding(
             config.vocab_size, config.hidden_size, padding_idx=0
         )
-        print ("!!!!!!!!!!!!!!!!!!!!!",self.word_embeddings)
+        #print ("!!!!!!!!!!!!!!!!!!!!!",self.word_embeddings)
         self.position_embeddings = nn.Embedding(
             config.max_position_embeddings, config.hidden_size
         )
@@ -202,7 +202,6 @@ class LayoutlmForTokenClassification(BertPreTrainedModel):
         self.bert = LayoutlmModel(config)
         self.dropout = nn.Dropout(config.hidden_dropout_prob)
         self.classifier = nn.Linear(config.hidden_size, config.num_labels)
-
         self.init_weights()
 
     def forward(
@@ -245,7 +244,6 @@ class LayoutlmForTokenClassification(BertPreTrainedModel):
             else:
                 loss = loss_fct(logits.view(-1, self.num_labels), labels.view(-1))
             outputs = (loss,) + outputs
-
         return outputs  # (loss), scores, (hidden_states), (attentions)
 
 
@@ -257,13 +255,10 @@ class LayoutlmForSequenceClassification(BertPreTrainedModel):
     def __init__(self, config):
         super(LayoutlmForSequenceClassification, self).__init__(config)
         self.num_labels = config.num_labels
-
         self.bert = LayoutlmModel(config)
         self.dropout = nn.Dropout(config.hidden_dropout_prob)
         self.classifier = nn.Linear(config.hidden_size, self.config.num_labels)
-
         self.init_weights()
-
     def forward(
         self,
         input_ids,
@@ -275,7 +270,6 @@ class LayoutlmForSequenceClassification(BertPreTrainedModel):
         inputs_embeds=None,
         labels=None,
     ):
-
         outputs = self.bert(
             input_ids=input_ids,
             bbox=bbox,
@@ -289,7 +283,6 @@ class LayoutlmForSequenceClassification(BertPreTrainedModel):
 
         pooled_output = self.dropout(pooled_output)
         logits = self.classifier(pooled_output)
-
         outputs = (logits,) + outputs[
             2:
         ]  # add hidden states and attention if they are here

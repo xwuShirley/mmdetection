@@ -26,6 +26,7 @@ import shutil
 
 import numpy as np
 import torch
+from torchvision import transforms
 from seqeval.metrics import (
     classification_report,
     f1_score,
@@ -49,7 +50,7 @@ from transformers import (
     get_linear_schedule_with_warmup,
 )
 
-from MYlayoutlm import FunsdDataset, LayoutlmConfig, LayoutlmForTokenClassification
+from MYlayoutlm import IMFunsdDataset,FunsdDataset, LayoutlmConfig, LayoutlmForTokenClassification
 
 logger = logging.getLogger(__name__)
 
@@ -309,7 +310,7 @@ def train(  # noqa C901
 
 def evaluate(args, model, tokenizer, labels, pad_token_label_id, mode, prefix=""):
     eval_dataset = FunsdDataset(args, tokenizer, labels, pad_token_label_id, mode=mode)
-
+    print ("DONE!eval_dataset")
     args.eval_batch_size = args.per_gpu_eval_batch_size * max(1, args.n_gpu)
     eval_sampler = SequentialSampler(eval_dataset)
     eval_dataloader = DataLoader(
@@ -699,9 +700,17 @@ def main():  # noqa C901
 
     # Training
     if args.do_train:
-        train_dataset = FunsdDataset(
-            args, tokenizer, labels, pad_token_label_id, mode="train"
+        transform_train = transforms.Compose([
+            transforms.Resize(250*2),
+            transforms.RandomSizedCrop(224*2),
+            transforms.RandomHorizontalFlip(),
+            transforms.ToTensor(),
+            transforms.Normalize([0.485,0.456,0.406], [0.229,0.224,0.225])])
+
+        train_dataset = IMFunsdDataset(
+            args, tokenizer, labels, pad_token_label_id, mode="train",transform=transform_train
         )
+        #print ("DONE!eval_dataset")
         global_step, tr_loss = train(
             args, train_dataset, model, tokenizer, labels, pad_token_label_id
         )

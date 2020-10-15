@@ -21,10 +21,13 @@ class FunsdDataset(Dataset):
                 str(args.max_seq_length),
             ),
         )
+        print ("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
         if os.path.exists(cached_features_file) and not args.overwrite_cache:
+            print ("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
             logger.info("Loading features from cached file %s", cached_features_file)
             features = torch.load(cached_features_file)
         else:
+            print ("++++++++++++++++++++++++++++++++++++++++++++++++++=")
             logger.info("Creating features from dataset file at %s", args.data_dir)
             examples = read_examples_from_file(args.data_dir, mode)
             features = convert_examples_to_features(
@@ -78,6 +81,7 @@ class FunsdDataset(Dataset):
             self.all_segment_ids[index],
             self.all_label_ids[index],
             self.all_bboxes[index],
+            
         )
 class InputExample(object):
     """A single training/test example for token classification."""
@@ -158,6 +162,8 @@ def read_examples_from_file(data_dir, mode):
                             page_size=page_size,
                         )
                     )
+                    # print(file_name)
+                    # break
                     guid_index += 1
                     words = []
                     boxes = []
@@ -169,11 +175,16 @@ def read_examples_from_file(data_dir, mode):
                 splits = line.split("\t")
                 bsplits = bline.split("\t")
                 isplits = iline.split("\t")
+                # print (splits)
+                # print (bsplits)
+                # print (isplits)
                 assert len(splits) == 2
                 assert len(bsplits) == 2
                 assert len(isplits) == 4
                 assert splits[0] == bsplits[0]
                 words.append(splits[0])
+                # print ("words......",words)
+                # break
                 if len(splits) > 1:
                     labels.append(splits[-1].replace("\n", ""))
                     box = bsplits[-1].replace("\n", "")
@@ -186,6 +197,8 @@ def read_examples_from_file(data_dir, mode):
                 else:
                     # Examples could have no label for mode = "test"
                     labels.append("O")
+       
+        # print (words)
         if words:
             examples.append(
                 InputExample(
@@ -198,6 +211,7 @@ def read_examples_from_file(data_dir, mode):
                     page_size=page_size,
                 )
             )
+
     return examples
 
 
@@ -304,9 +318,7 @@ def convert_examples_to_features(
             actual_bboxes = [[0, 0, width, height]] + actual_bboxes
             label_ids = [pad_token_label_id] + label_ids
             segment_ids = [cls_token_segment_id] + segment_ids
-
         input_ids = tokenizer.convert_tokens_to_ids(tokens)
-
         # The mask has 1 for real tokens and 0 for padding tokens. Only real
         # tokens are attended to.
         input_mask = [1 if mask_padding_with_zero else 0] * len(input_ids)
