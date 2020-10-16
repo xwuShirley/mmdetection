@@ -82,8 +82,7 @@ class IMFunsdDataset(Dataset):
             #break
             # break
         self.all_bboxes = torch.tensor([self.scale*np.array(f.boxes) for f in features], dtype=torch.long)
-        fp16_cfg = cfg.get('fp16', None)
-        if fp16_cfg is not None and mode == "train":
+        if args.fp16 and mode == "train":
             self.gt_bboxes = torch.tensor([(self.scale*np.array(f.actual_bboxes)[:,index]).astype(int)  for f in features], dtype=torch.float16)
         else:
             self.gt_bboxes = torch.tensor([(self.scale*np.array(f.actual_bboxes)[:,index]).astype(int)  for f in features], dtype=torch.float)

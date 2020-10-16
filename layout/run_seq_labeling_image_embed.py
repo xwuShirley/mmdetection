@@ -337,13 +337,12 @@ def train(  # noqa C901
 
 
 def evaluate(args, model, tokenizer, labels, pad_token_label_id, mode, prefix=""):
-    transform_test = transforms.Compose([
-            #transforms.Resize(img_size),
-            # transforms.RandomSizedCrop(224*2),
-            # transforms.RandomHorizontalFlip(),
-            transforms.ToTensor(),
-            #transforms.Normalize([0.485,0.456,0.406], [0.229,0.224,0.225])
-            ])    
+    if args.ImageNormalization:
+        transform_test = transforms.Compose([transforms.ToTensor(),
+        transforms.Normalize([0.485,0.456,0.406], [0.229,0.224,0.225])
+        ])
+    else:
+        transform_test= transforms.Compose([transforms.ToTensor()]) 
     eval_dataset = IMFunsdDataset(args, tokenizer, labels, pad_token_label_id, mode=mode,transform=transform_test)
 
     args.eval_batch_size = args.per_gpu_eval_batch_size * max(1, args.n_gpu)
@@ -660,7 +659,11 @@ def parse_args():
     parser.add_argument(
         "--seed", type=int, default=42, help="random seed for initialization"
     )
-
+    parser.add_argument(
+        "--ImageNormalization",
+        action="store_true",
+        help="image normalization",
+    )
     parser.add_argument(
         "--fp16",
         action="store_true",
@@ -920,13 +923,14 @@ def main():  # noqa C901
 
     # Training
     if args.do_train:
-        transform_train = transforms.Compose([
-            #transforms.Resize(img_size),
-            # transforms.RandomSizedCrop(224*2),
-            # transforms.RandomHorizontalFlip(),
+        if args.ImageNormalization:
+            logger.info("IMAGE NORMLIZATION")
+            transform_train = transforms.Compose([
             transforms.ToTensor(),
-            #transforms.Normalize([0.485,0.456,0.406], [0.229,0.224,0.225])
+            transforms.Normalize([0.485,0.456,0.406], [0.229,0.224,0.225])
             ])
+        else:
+            transform_train = transforms.Compose([transforms.ToTensor()])
         train_dataset = IMFunsdDataset(
             args, tokenizer, labels, pad_token_label_id, mode="train",transform=transform_train,scale=args.scale)
         #print ("DONE!eval_dataset")

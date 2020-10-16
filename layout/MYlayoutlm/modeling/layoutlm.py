@@ -216,6 +216,9 @@ class FasterRCNN(torch.nn.Module):
                     cfg.model.neck.rfp_backbone.pretrained = None
         #self.model = build_detector(cfg.model, train_cfg=cfg.train_cfg, test_cfg=cfg.test_cfg)
         self.model = init_detector(cfg, args.checkpoint)
+        logger.info("===========================================>\nTHIS IS how we load the image detector (FasterRCNN or MASK-RCNN) models, we don't use from_pretrain, instead we directly call the mmdetection and load it here")
+        logger.info(model)
+        self.fc1 = nn.Linear(1024, 1024)
         fp16_cfg = cfg.get('fp16', None)
         if fp16_cfg is not None:
             wrap_fp16_model(model)
@@ -231,7 +234,8 @@ class FasterRCNN(torch.nn.Module):
         """
 
         result =  self.model(images,gt_bboxes)
-        return result
+        
+        return self.fc1(result)
 
 
 
