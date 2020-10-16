@@ -215,7 +215,7 @@ class FasterRCNN(torch.nn.Module):
                 if cfg.model.neck.rfp_backbone.get('pretrained'):
                     cfg.model.neck.rfp_backbone.pretrained = None
         #self.model = build_detector(cfg.model, train_cfg=cfg.train_cfg, test_cfg=cfg.test_cfg)
-        self.model = init_detector(cfg, args.checkpoint, device='cuda:0')
+        self.model = init_detector(cfg, args.checkpoint)
         fp16_cfg = cfg.get('fp16', None)
         if fp16_cfg is not None:
             wrap_fp16_model(model)
