@@ -6,7 +6,8 @@ from torch.nn import CrossEntropyLoss, MSELoss
 from transformers import BertConfig, BertModel, BertPreTrainedModel
 from transformers.modeling_bert import BertLayerNorm
 
-from mmdet.models import build_detector
+# from mmdet.models import build_detector
+from mmdet.apis import init_detector
 from mmcv.runner import (get_dist_info, init_dist, load_checkpoint,
                          wrap_fp16_model)
 
@@ -194,7 +195,7 @@ class LayoutlmModel(BertModel):
         return outputs  # sequence_output, pooled_output, (hidden_states), (attentions)
 
 class FasterRCNN(torch.nn.Module):
-    def __init__(self,cfg):
+    def __init__(self,cfg,args):
         super(FasterRCNN, self).__init__()
         # import modules from string list.
         if cfg.get('custom_imports', None):
@@ -213,7 +214,8 @@ class FasterRCNN(torch.nn.Module):
             elif cfg.model.neck.get('rfp_backbone'):
                 if cfg.model.neck.rfp_backbone.get('pretrained'):
                     cfg.model.neck.rfp_backbone.pretrained = None
-        self.model = build_detector(cfg.model, train_cfg=cfg.train_cfg, test_cfg=cfg.test_cfg)
+        #self.model = build_detector(cfg.model, train_cfg=cfg.train_cfg, test_cfg=cfg.test_cfg)
+        self.model = init_detector(cfg, args.checkpoint, device='cuda:0')
         fp16_cfg = cfg.get('fp16', None)
         if fp16_cfg is not None:
             wrap_fp16_model(model)
@@ -240,11 +242,11 @@ class LayoutlmForTokenClassification(BertPreTrainedModel):
     pretrained_model_archive_map = LAYOUTLM_PRETRAINED_MODEL_ARCHIVE_MAP
     base_model_prefix = "bert"
 
-    def __init__(self,config,cfg):
-        super().__init__(config,cfg)
+    def __init__(self,config,cfg,args):
+        super().__init__(config,cfg,args)
         self.num_labels = config.num_labels
         self.bert = LayoutlmModel(config)
-        self.fasterRCNN  = FasterRCNN(cfg)
+        self.fasterRCNN  = FasterRCNN(cfg,args)
         self.dropout = nn.Dropout(config.hidden_dropout_prob)
         self.classifier = nn.Linear(config.hidden_size, config.num_labels)
         self.init_weights()
@@ -273,7 +275,7 @@ class LayoutlmForTokenClassification(BertPreTrainedModel):
 
         sequence_output = outputs[0]
         sequence_output = self.dropout(sequence_output)
-        print (images.size())
+        #print (images.size())
         image_output = self.fasterRCNN(images,gt_bboxes) #<=================================
         image_output = self.dropout(image_output)
 

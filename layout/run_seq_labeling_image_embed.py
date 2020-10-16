@@ -256,6 +256,9 @@ def train(  # noqa C901
                     scaled_loss.backward()
             else:
                 loss.backward()
+            # for k, v in model.named_parameters():
+            #     if v.requires_grad:
+            #         print (k)
 
             tr_loss += loss.item()
             if (step + 1) % args.gradient_accumulation_steps == 0:
@@ -893,6 +896,7 @@ def main():  # noqa C901
         from_tf=bool(".ckpt" in args.model_name_or_path),
         config=config,
         cfg=cfg,
+        args=args,
         cache_dir=args.cache_dir if args.cache_dir else None,
     )
 
