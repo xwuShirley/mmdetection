@@ -337,7 +337,14 @@ def train(  # noqa C901
 
 
 def evaluate(args, model, tokenizer, labels, pad_token_label_id, mode, prefix=""):
-    eval_dataset = FunsdDataset(args, tokenizer, labels, pad_token_label_id, mode=mode)
+    transform_test = transforms.Compose([
+            #transforms.Resize(img_size),
+            # transforms.RandomSizedCrop(224*2),
+            # transforms.RandomHorizontalFlip(),
+            transforms.ToTensor(),
+            #transforms.Normalize([0.485,0.456,0.406], [0.229,0.224,0.225])
+            ])    
+    eval_dataset = IMFunsdDataset(args, tokenizer, labels, pad_token_label_id, mode=mode,transform=transform_test)
 
     args.eval_batch_size = args.per_gpu_eval_batch_size * max(1, args.n_gpu)
     eval_sampler = SequentialSampler(eval_dataset)
@@ -363,6 +370,8 @@ def evaluate(args, model, tokenizer, labels, pad_token_label_id, mode, prefix=""
                 "input_ids": batch[0].to(args.device),
                 "attention_mask": batch[1].to(args.device),
                 "labels": batch[3].to(args.device),
+                "gt_bboxes": batch[5].to(args.device),
+                "images": batch[6].to(args.device),                
             }
             if args.model_type in ["layoutlm"]:
                 inputs["bbox"] = batch[4].to(args.device)
@@ -964,7 +973,10 @@ def main():  # noqa C901
         logger.info("Evaluate the following checkpoints: %s", checkpoints)
         for checkpoint in checkpoints:
             global_step = checkpoint.split("-")[-1] if len(checkpoints) > 1 else ""
-            model = model_class.from_pretrained(checkpoint)
+            model = model_class.from_pretrained(checkpoint,\
+                                                config=config,\
+                                                cfg=cfg,\
+                                                args=args)
             model.to(args.device)
             result, _ = evaluate(
                 args,

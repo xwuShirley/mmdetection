@@ -81,13 +81,12 @@ class IMFunsdDataset(Dataset):
         #     print (i,"~~~~~~~~~~~~~~~~~~ACTUAL~~~",np.array(f.actual_bboxes).shape)
             #break
             # break
-        if not self.scale:
-            self.all_bboxes = torch.tensor([f.boxes for f in features], dtype=torch.long)
-            self.gt_bboxes = torch.tensor([f.actual_bboxes for f in features], dtype=torch.long)
-        else:
-            self.all_bboxes = torch.tensor([(self.scale*np.array(f.boxes)).astype(int)  for f in features], dtype=torch.long)
+        self.all_bboxes = torch.tensor([self.scale*np.array(f.boxes) for f in features], dtype=torch.long)
+        fp16_cfg = cfg.get('fp16', None)
+        if fp16_cfg is not None and mode == "train":
             self.gt_bboxes = torch.tensor([(self.scale*np.array(f.actual_bboxes)[:,index]).astype(int)  for f in features], dtype=torch.float16)
-            # print (np.array(f.actual_bboxes)
+        else:
+            self.gt_bboxes = torch.tensor([(self.scale*np.array(f.actual_bboxes)[:,index]).astype(int)  for f in features], dtype=torch.float)
         if mode == "train":
             self.image_paths = [os.path.join(args.data_dir,'training_data/images',f.file_name) for f in features]
         else:
