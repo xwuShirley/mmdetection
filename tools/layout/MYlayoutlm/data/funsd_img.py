@@ -72,17 +72,20 @@ class IMFunsdDataset(Dataset):
         self.all_label_ids = torch.tensor(
             [f.label_ids for f in features], dtype=torch.long
         )
+        index = [0,3,2,1]
         # for f in features:
-        #    print (f.boxes)
-        #    for x in f.boxes:
-        #        print ("~~~~~~~~~~~~~~~~~~~~~",x)
-        #        print (self.scale*x)
+        #     #for x in f.boxes:
+        #     print ("~~~~~~~~~~~~~~~~~~before~~~",np.array(f.boxes).shape)
+        #     print ("~~~~~~~~~~~~~~~~~~after~~~",np.array(f.boxes)[:,index])
+        #     #break
+        #     break
         if not self.scale:
             self.all_bboxes = torch.tensor([f.boxes for f in features], dtype=torch.long)
             self.gt_bboxes = torch.tensor([f.actual_bboxes for f in features], dtype=torch.long)
         else:
-            self.all_bboxes = torch.tensor([self.scale*np.array(f.boxes) for f in features], dtype=torch.long)
-            self.gt_bboxes = torch.tensor([self.scale*np.array(f.actual_bboxes) for f in features], dtype=torch.long)
+            self.all_bboxes = torch.tensor([(self.scale*np.array(f.boxes)[:,index]).astype(int)  for f in features], dtype=torch.long)
+            self.gt_bboxes = torch.tensor([(self.scale*np.array(f.actual_bboxes)[:,index]).astype(int)  for f in features], dtype=torch.long)
+            # print (np.array(f.actual_bboxes)
         if mode == "train":
             self.image_paths = [os.path.join(args.data_dir,'training_data/images',f.file_name) for f in features]
         else:
@@ -109,13 +112,13 @@ class IMFunsdDataset(Dataset):
         # print (img.size())
         # print (self.gt_bboxes[index])
         return (
-            self.all_input_ids[index],
-            self.all_input_mask[index],
-            self.all_segment_ids[index],
-            self.all_label_ids[index],
-            self.all_bboxes[index],
-            self.gt_bboxes[index],
-            img,   
+            self.all_input_ids[index],#0
+            self.all_input_mask[index],#1
+            self.all_segment_ids[index],#2
+            self.all_label_ids[index],#3
+            self.all_bboxes[index],#4
+            self.gt_bboxes[index],#5
+            img, #6
         )
 
 class InputExample(object):

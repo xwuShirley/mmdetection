@@ -135,24 +135,15 @@ class StandardRoIHead(BaseRoIHead, BBoxTestMixin, MaskTestMixin):
         return losses
     #x, proposal_list, img_metas, rescale=rescale)
     #def bbox_forward_feature(self, x, rois):
-    def bbox_forward_feature(self,
-                    x,
-                    proposal_list,
-                    img_metas,
-                    proposals=None,
-                    rescale=False):
-
+    def bbox_forward_feature(self,x,proposal_list):
         """Box head forward function used in both training and testing."""
         # TODO: a more flexible way to decide which feature maps to use
-        
         rois = bbox2roi(proposal_list)
-        print ("!!proposa~~~~~~~~~~~~~~~~!",len(rois))
         bbox_feats = self.bbox_roi_extractor(
             x[:self.bbox_roi_extractor.num_inputs], rois)
         if self.with_shared_head:
             bbox_feats = self.shared_head(bbox_feats)
-       
-        return  self.bbox_head(bbox_feats),img_metas
+        return  self.bbox_head(bbox_feats)
 
     def _bbox_forward(self, x, rois):
         """Box head forward function used in both training and testing."""
@@ -162,8 +153,6 @@ class StandardRoIHead(BaseRoIHead, BBoxTestMixin, MaskTestMixin):
         if self.with_shared_head:
             bbox_feats = self.shared_head(bbox_feats)
         cls_score, bbox_pred = self.bbox_head(bbox_feats)
-        # print (",!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!",bbox_pred)
-        # print (",!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!",cls_score.size())
         bbox_results = dict(
             cls_score=cls_score, bbox_pred=bbox_pred, bbox_feats=bbox_feats)
         return bbox_results

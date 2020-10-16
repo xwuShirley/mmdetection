@@ -26,6 +26,8 @@ import shutil
 
 import numpy as np
 import torch
+import torchvision
+from torchvision import transforms
 from seqeval.metrics import (
     classification_report,
     f1_score,
@@ -49,7 +51,7 @@ from transformers import (
     get_linear_schedule_with_warmup,
 )
 
-from MYlayoutlm import FunsdDataset, LayoutlmConfig, LayoutlmForTokenClassification
+from MYlayoutlm import IMFunsdDataset,FunsdDataset, LayoutlmConfig, LayoutlmForTokenClassification
 ########################for image-emdedding
 
 import copy
@@ -58,7 +60,6 @@ import time
 import warnings
 
 import mmcv
-import torch
 from mmcv import Config, DictAction
 from mmcv.cnn import fuse_conv_bn
 from mmcv.parallel import MMDataParallel, MMDistributedDataParallel
@@ -227,18 +228,20 @@ def train(  # noqa C901
             train_dataloader, desc="Iteration", disable=args.local_rank not in [-1, 0]
         )
         for step, batch in enumerate(epoch_iterator):
+
             model.train()
             inputs = {
                 "input_ids": batch[0].to(args.device),
                 "attention_mask": batch[1].to(args.device),
                 "labels": batch[3].to(args.device),
+                "gt_bboxes": batch[5].to(args.device),
+                "images": batch[6].to(args.device),
             }
             if args.model_type in ["layoutlm"]:
                 inputs["bbox"] = batch[4].to(args.device)
             inputs["token_type_ids"] = (
                 batch[2].to(args.device) if args.model_type in ["bert", "layoutlm"] else None
             )  # RoBERTa don"t use segment_ids
-
             outputs = model(**inputs)
             # model outputs are always tuple in pytorch-transformers (see doc)
             loss = outputs[0]
@@ -511,6 +514,9 @@ def parse_args():
 
     ## Other parameters
     parser.add_argument(
+        "--scale", default=0.5, type=float, help="scale if we apply some."
+    ) 
+    parser.add_argument(
         "--labels",
         default="",
         type=str,
@@ -742,32 +748,32 @@ def image_model_load(args):
     fp16_cfg = cfg.get('fp16', None)
     if fp16_cfg is not None:
         wrap_fp16_model(model)
-    checkpoint = load_checkpoint(model, args.checkpoint, map_location='cpu')
+    #checkpoint = load_checkpoint(model, args.checkpoint, map_location='cpu')
     if args.fuse_conv_bn:
         model = fuse_conv_bn(model)
     # old versions did not save class info in checkpoints, this walkaround is
-    # for backward compatibility
-    if 'CLASSES' in checkpoint['meta']:
-        model.CLASSES = checkpoint['meta']['CLASSES']
-    else:
-        model.CLASSES = dataset.CLASSES
     #print (model.CLASSES)
     model = MMDataParallel(model, device_ids=[0])
     # outputs = single_gpu_test(model, data_loader, args.show, args.show_dir,
     #                               args.show_score_thr,return_loss=True)
-    model.eval()
+
+    # model.eval()
     results = []
     dataset = data_loader.dataset
-    prog_bar = mmcv.ProgressBar(len(dataset))
+    prog_bar = mmcv.ProgressBar(len(dataset))###################<=======
     for i, data in enumerate(data_loader):
+        print ("==================================================")
+        print (data['gt_bboxes'].data[0][0].type())
+        
+        print ("==================================================")
         with torch.no_grad():
-            result,img_metas = model(return_loss=True, rescale=True,**data)
+            result = model(data['img'], data['gt_bboxes'])
         results.extend(result)
         #print (img_metas)
-        print ("!!proposa~~~~~~~~~~~~~~~~!",result.size())
+        #print ("!!proposa~~~~~~~~~~~~~~~~!",result.size())
         if i>1:
             break
-    return results             
+    return results            
 def main():  # noqa C901
     parser = argparse.ArgumentParser()
     args = parse_args()
@@ -858,7 +864,12 @@ def main():  # noqa C901
         torch.distributed.barrier()  # Make sure only the first process in distributed training will download model & vocab
 ###########################load image model
     # build the model and load checkpoint
-    image_model = image_model_load(args)
+    # image_model = image_model_load(args)
+    cfg = Config.fromfile(args.config)
+    if args.cfg_options is not None:
+        cfg.merge_from_dict(args.cfg_options)
+
+    # cfg = Config.fromfile(args.config)
     # print (image_model)
     
 ################################
@@ -870,6 +881,7 @@ def main():  # noqa C901
         num_labels=num_labels,
         cache_dir=args.cache_dir if args.cache_dir else None,
     )
+    #model_class = LayoutlmForTokenClassification(config,cfg)
     tokenizer = tokenizer_class.from_pretrained(
         args.tokenizer_name if args.tokenizer_name else args.model_name_or_path,
         do_lower_case=args.do_lower_case,
@@ -879,8 +891,11 @@ def main():  # noqa C901
         args.model_name_or_path,
         from_tf=bool(".ckpt" in args.model_name_or_path),
         config=config,
+        cfg=cfg,
         cache_dir=args.cache_dir if args.cache_dir else None,
     )
+
+
     #print (model)
     if args.local_rank == 0:
         torch.distributed.barrier()  # Make sure only the first process in distributed training will download model & vocab
@@ -891,9 +906,16 @@ def main():  # noqa C901
 
     # Training
     if args.do_train:
+        transform_train = transforms.Compose([
+            #transforms.Resize(img_size),
+            # transforms.RandomSizedCrop(224*2),
+            # transforms.RandomHorizontalFlip(),
+            transforms.ToTensor(),
+            #transforms.Normalize([0.485,0.456,0.406], [0.229,0.224,0.225])
+            ])
         train_dataset = IMFunsdDataset(
-            args, tokenizer, labels, pad_token_label_id, mode="train"
-        )
+            args, tokenizer, labels, pad_token_label_id, mode="train",transform=transform_train,scale=args.scale)
+        #print ("DONE!eval_dataset")
         global_step, tr_loss = train(
             args, train_dataset, model, tokenizer, labels, pad_token_label_id
         )

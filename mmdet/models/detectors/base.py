@@ -156,7 +156,7 @@ class BaseDetector(nn.Module, metaclass=ABCMeta):
             return self.aug_test(imgs, img_metas, **kwargs)
 
     @auto_fp16(apply_to=('img', ))
-    def forward(self, img, img_metas, return_loss=True, **kwargs):
+    def forward(self, img, gt_boxes, return_loss=True):
         """Calls either :func:`forward_train` or :func:`forward_test` depending
         on whether ``return_loss`` is ``True``.
 
@@ -167,9 +167,9 @@ class BaseDetector(nn.Module, metaclass=ABCMeta):
         the outer list indicating test time augmentations.
         """
         if return_loss:
-            return self.forward_train(img, img_metas, **kwargs)
+            return self.forward_train(img, gt_boxes)
         else:
-            return self.forward_test(img, img_metas, **kwargs)
+            return self.forward_test(img, gt_boxes)
 
     def _parse_losses(self, losses):
         """Parse the raw outputs (losses) of the network.

@@ -703,7 +703,6 @@ def main():  # noqa C901
 
     # Training
     if args.do_train:
-        img_size = 500
         transform_train = transforms.Compose([
             #transforms.Resize(img_size),
             # transforms.RandomSizedCrop(224*2),

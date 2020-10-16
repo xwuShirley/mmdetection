@@ -6,6 +6,10 @@ from torch.nn import CrossEntropyLoss, MSELoss
 from transformers import BertConfig, BertModel, BertPreTrainedModel
 from transformers.modeling_bert import BertLayerNorm
 
+from mmdet.models import build_detector
+from mmcv.runner import (get_dist_info, init_dist, load_checkpoint,
+                         wrap_fp16_model)
+
 logger = logging.getLogger(__name__)
 
 LAYOUTLM_PRETRAINED_MODEL_ARCHIVE_MAP = {}
@@ -118,7 +122,6 @@ class LayoutlmModel(BertModel):
         self.embeddings = LayoutlmEmbeddings(config)
         self.init_weights()
         
-
     def forward(
         self,
         input_ids,
@@ -190,16 +193,58 @@ class LayoutlmModel(BertModel):
         ]  # add hidden_states and attentions if they are here
         return outputs  # sequence_output, pooled_output, (hidden_states), (attentions)
 
+class FasterRCNN(torch.nn.Module):
+    def __init__(self,cfg):
+        super(FasterRCNN, self).__init__()
+        # import modules from string list.
+        if cfg.get('custom_imports', None):
+            from mmcv.utils import import_modules_from_strings
+            import_modules_from_strings(**cfg['custom_imports'])
+        # set cudnn_benchmark
+        if cfg.get('cudnn_benchmark', False):
+            torch.backends.cudnn.benchmark = True
+        cfg.model.pretrained = None
+        if cfg.model.get('neck'):
+            if isinstance(cfg.model.neck, list):
+                for neck_cfg in cfg.model.neck:
+                    if neck_cfg.get('rfp_backbone'):
+                        if neck_cfg.rfp_backbone.get('pretrained'):
+                            neck_cfg.rfp_backbone.pretrained = None
+            elif cfg.model.neck.get('rfp_backbone'):
+                if cfg.model.neck.rfp_backbone.get('pretrained'):
+                    cfg.model.neck.rfp_backbone.pretrained = None
+        self.model = build_detector(cfg.model, train_cfg=cfg.train_cfg, test_cfg=cfg.test_cfg)
+        fp16_cfg = cfg.get('fp16', None)
+        if fp16_cfg is not None:
+            wrap_fp16_model(model)
+    def forward(self,images,gt_bboxes):
+        # output = model(images)
+        """
+       Args:
+            img (Tensor): of shape (N, C, H, W) encoding input images.
+                Typically these should be mean centered and std scaled.
+
+            gt_bboxes (list[Tensor]): Ground truth bboxes for each image with
+                shape (num_gts, 4) in [tl_x, tl_y, br_x, br_y] format.       
+        """
+
+        result =  self.model(images,gt_bboxes)
+        return result
+
+
+
+
 
 class LayoutlmForTokenClassification(BertPreTrainedModel):
     config_class = LayoutlmConfig
     pretrained_model_archive_map = LAYOUTLM_PRETRAINED_MODEL_ARCHIVE_MAP
     base_model_prefix = "bert"
 
-    def __init__(self, config):
-        super().__init__(config)
+    def __init__(self,config,cfg):
+        super().__init__(config,cfg)
         self.num_labels = config.num_labels
         self.bert = LayoutlmModel(config)
+        self.fasterRCNN  = FasterRCNN(cfg)
         self.dropout = nn.Dropout(config.hidden_dropout_prob)
         self.classifier = nn.Linear(config.hidden_size, config.num_labels)
         self.init_weights()
@@ -208,6 +253,8 @@ class LayoutlmForTokenClassification(BertPreTrainedModel):
         self,
         input_ids,
         bbox,
+        images,
+        gt_bboxes,
         attention_mask=None,
         token_type_ids=None,
         position_ids=None,
@@ -215,7 +262,6 @@ class LayoutlmForTokenClassification(BertPreTrainedModel):
         inputs_embeds=None,
         labels=None,
     ):
-        #print ("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!test")
         outputs = self.bert(
             input_ids=input_ids,
             bbox=bbox,
@@ -226,9 +272,13 @@ class LayoutlmForTokenClassification(BertPreTrainedModel):
         )
 
         sequence_output = outputs[0]
-
         sequence_output = self.dropout(sequence_output)
-        logits = self.classifier(sequence_output)
+        print (images.size())
+        image_output = self.fasterRCNN(images,gt_bboxes) #<=================================
+        image_output = self.dropout(image_output)
+
+        logits = self.classifier(sequence_output+image_output)
+        #logits = self.classifier(sequence_output)
 
         outputs = (logits,) + outputs[
             2:
