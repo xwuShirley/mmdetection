@@ -926,13 +926,14 @@ def main():  # noqa C901
         if args.ImageNormalization:
             logger.info("IMAGE NORMLIZATION")
             transform_train = transforms.Compose([
+            #transforms.resize(args.scale),
             transforms.ToTensor(),
             transforms.Normalize([0.485,0.456,0.406], [0.229,0.224,0.225])
             ])
         else:
             transform_train = transforms.Compose([transforms.ToTensor()])
         train_dataset = IMFunsdDataset(
-            args, tokenizer, labels, pad_token_label_id, mode="train",transform=transform_train,scale=args.scale)
+            args, tokenizer, labels, pad_token_label_id, mode="train",transform=transform_train)
         #print ("DONE!eval_dataset")
         global_step, tr_loss = train(
             args, train_dataset, model, tokenizer, labels, pad_token_label_id

@@ -12,8 +12,8 @@ logger = logging.getLogger(__name__)
 
 
 class IMFunsdDataset(Dataset):
-    def __init__(self, args, tokenizer, labels, pad_token_label_id, mode, transform=None,scale=None):
-        self.scale = scale
+    def __init__(self, args, tokenizer, labels, pad_token_label_id, mode, transform=None):
+        
         if args.local_rank not in [-1, 0] and mode == "train":
             torch.distributed.barrier()  # Make sure only the first process in distributed training process the dataset, and the others will use the cache
 
@@ -81,11 +81,12 @@ class IMFunsdDataset(Dataset):
         #     print (i,"~~~~~~~~~~~~~~~~~~ACTUAL~~~",np.array(f.actual_bboxes).shape)
             #break
             # break
-        self.all_bboxes = torch.tensor([self.scale*np.array(f.boxes) for f in features], dtype=torch.long)
+        #print ("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!",args.scale)
+        self.all_bboxes = torch.tensor([args.scale*np.array(f.boxes) for f in features], dtype=torch.long)
         if args.fp16 and mode == "train":
-            self.gt_bboxes = torch.tensor([(self.scale*np.array(f.actual_bboxes)[:,index]).astype(int)  for f in features], dtype=torch.float16)
+            self.gt_bboxes = torch.tensor([(args.scale*np.array(f.actual_bboxes)[:,index]).astype(int)  for f in features], dtype=torch.float16)
         else:
-            self.gt_bboxes = torch.tensor([(self.scale*np.array(f.actual_bboxes)[:,index]).astype(int)  for f in features], dtype=torch.float)
+            self.gt_bboxes = torch.tensor([(args.scale*np.array(f.actual_bboxes)[:,index]).astype(int)  for f in features], dtype=torch.float)
         if mode == "train":
             self.image_paths = [os.path.join(args.data_dir,'training_data/images',f.file_name) for f in features]
         else:
@@ -93,6 +94,7 @@ class IMFunsdDataset(Dataset):
         self.transform = transform 
         # print ("image_paths,image_paths,image_paths", self.image_paths)
         # print ("gt_bboxes",  self.gt_bboxes)
+        self.scale = args.scale
     def __len__(self):
         return len(self.features)
 
