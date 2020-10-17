@@ -10,7 +10,7 @@ from mmdet.models.losses import accuracy
 
 
 @HEADS.register_module()
-class BBoxHead(nn.Module):
+class BBoxHeadLayout(nn.Module):
     """Simplest RoI head, with only two fc layers for classification and
     regression respectively."""
 
@@ -33,8 +33,8 @@ class BBoxHead(nn.Module):
                      loss_weight=1.0),
                  loss_bbox=dict(
                      type='SmoothL1Loss', beta=1.0, loss_weight=1.0)):
-        super(BBoxHead, self).__init__()
-        assert with_cls or with_reg
+        super(BBoxHeadLayout, self).__init__()
+        # assert with_cls or with_reg
         self.with_avg_pool = with_avg_pool
         self.with_cls = with_cls
         self.with_reg = with_reg
@@ -62,7 +62,7 @@ class BBoxHead(nn.Module):
             out_dim_reg = 4 if reg_class_agnostic else 4 * num_classes
             self.fc_reg = nn.Linear(in_channels, out_dim_reg)
         self.debug_imgs = None
-
+        print ("USE MY OWN layout Head")
     def init_weights(self):
         # conv layers are already initialized by ConvModule
         if self.with_cls:

@@ -2,11 +2,11 @@ import torch.nn as nn
 from mmcv.cnn import ConvModule
 
 from mmdet.models.builder import HEADS
-from .bbox_head import BBoxHead
+from .bbox_head_layout import BBoxHeadLayout
 
 
 @HEADS.register_module()
-class ConvFCBBoxHead(BBoxHead):
+class ConvFCBBoxHeadLayout(BBoxHeadLayout):
     r"""More general bbox head, with shared conv and fc layers and two optional
     separated branches.
 
@@ -30,7 +30,7 @@ class ConvFCBBoxHead(BBoxHead):
                  norm_cfg=None,
                  *args,
                  **kwargs):
-        super(ConvFCBBoxHead, self).__init__(*args, **kwargs)
+        super(ConvFCBBoxHeadLayout, self).__init__(*args, **kwargs)
         assert (num_shared_convs + num_shared_fcs + num_cls_convs +
                 num_cls_fcs + num_reg_convs + num_reg_fcs > 0)
         if num_cls_convs > 0 or num_reg_convs > 0:
@@ -124,7 +124,7 @@ class ConvFCBBoxHead(BBoxHead):
         return branch_convs, branch_fcs, last_layer_dim
 
     def init_weights(self):
-        super(ConvFCBBoxHead, self).init_weights()
+        super(ConvFCBBoxHeadLayout, self).init_weights()
         # conv layers are already initialized by ConvModule
         for module_list in [self.shared_fcs, self.cls_fcs, self.reg_fcs]:
             for m in module_list.modules():
@@ -137,10 +137,13 @@ class ConvFCBBoxHead(BBoxHead):
         if self.num_shared_convs > 0:
             for conv in self.shared_convs:
                 x = conv(x)
+
         if self.num_shared_fcs > 0:
             if self.with_avg_pool:
                 x = self.avg_pool(x)
+
             x = x.flatten(1)
+
             for fc in self.shared_fcs:
                 x = self.relu(fc(x))
         # separate branches
@@ -154,43 +157,15 @@ class ConvFCBBoxHead(BBoxHead):
             x_cls = x_cls.flatten(1)
         for fc in self.cls_fcs:
             x_cls = self.relu(fc(x_cls))
-        for conv in self.reg_convs:
-            x_reg = conv(x_reg)
-        if x_reg.dim() > 2:
-            if self.with_avg_pool:
-                x_reg = self.avg_pool(x_reg)
-            x_reg = x_reg.flatten(1)
-        for fc in self.reg_fcs:
-            x_reg = self.relu(fc(x_reg))
-        
-        cls_score = self.fc_cls(x_cls) if self.with_cls else None
-        bbox_pred = self.fc_reg(x_reg) if self.with_reg else None
-        return cls_score, bbox_pred
-
+        return x_cls
 
 @HEADS.register_module()
-class Shared2FCBBoxHead(ConvFCBBoxHead):
+class Shared2FCBBoxHeadLayout(ConvFCBBoxHeadLayout):
 
     def __init__(self, fc_out_channels=1024, *args, **kwargs):
-        super(Shared2FCBBoxHead, self).__init__(
+        super(Shared2FCBBoxHeadLayout, self).__init__(
             num_shared_convs=0,
             num_shared_fcs=2,
-            num_cls_convs=0,
-            num_cls_fcs=0,
-            num_reg_convs=0,
-            num_reg_fcs=0,
-            fc_out_channels=fc_out_channels,
-            *args,
-            **kwargs)
-
-
-@HEADS.register_module()
-class Shared4Conv1FCBBoxHead(ConvFCBBoxHead):
-
-    def __init__(self, fc_out_channels=1024, *args, **kwargs):
-        super(Shared4Conv1FCBBoxHead, self).__init__(
-            num_shared_convs=4,
-            num_shared_fcs=1,
             num_cls_convs=0,
             num_cls_fcs=0,
             num_reg_convs=0,

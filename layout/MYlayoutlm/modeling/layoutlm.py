@@ -215,10 +215,15 @@ class FasterRCNN(torch.nn.Module):
                 if cfg.model.neck.rfp_backbone.get('pretrained'):
                     cfg.model.neck.rfp_backbone.pretrained = None
         #self.model = build_detector(cfg.model, train_cfg=cfg.train_cfg, test_cfg=cfg.test_cfg)
+        # if args.eval:
+        #     ??
+        # else:
         self.model = init_detector(cfg, args.checkpoint)
         logger.info("===========================================>\nTHIS IS how we load the image detector (FasterRCNN or MASK-RCNN) models, we don't use from_pretrain, instead we directly call the mmdetection and load it here")
         logger.info(self.model)
         self.fc1 = nn.Linear(1024, 1024)
+        # self.relu = nn.ReLU(inplace=True)
+        # self.fc2 = nn.Linear(2048, 1024)
         fp16_cfg = cfg.get('fp16', None)
         if fp16_cfg is not None:
             wrap_fp16_model(model)
@@ -236,10 +241,6 @@ class FasterRCNN(torch.nn.Module):
         result =  self.model(images,gt_bboxes)
         
         return self.fc1(result)
-
-
-
-
 
 class LayoutlmForTokenClassification(BertPreTrainedModel):
     config_class = LayoutlmConfig
