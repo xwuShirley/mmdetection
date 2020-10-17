@@ -9,9 +9,7 @@ from .bbox_head import BBoxHead
 class ConvFCBBoxHeadLayout(BBoxHead):
     r"""More general bbox head, with shared conv and fc layers and two optional
     separated branches.
-
     .. code-block:: none
-
                                     /-> cls convs -> cls fcs -> cls
         shared convs -> shared fcs
                                     \-> reg convs -> reg fcs -> reg
@@ -88,7 +86,6 @@ class ConvFCBBoxHeadLayout(BBoxHead):
                             in_channels,
                             is_shared=False):
         """Add shared or separable branch.
-
         convs -> avg pool (optional) -> fcs
         """
         last_layer_dim = in_channels

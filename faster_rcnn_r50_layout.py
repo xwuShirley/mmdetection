@@ -38,6 +38,4 @@ model = dict(
             with_cls = False,
             )
             ))
-test_cfg = dict(
-    rpn=None,
-    rcnn=dict())
+test_cfg = dict(rpn=None,rcnn=dict())
