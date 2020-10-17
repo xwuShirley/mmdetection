@@ -339,7 +339,7 @@ def train(  # noqa C901
 def evaluate(args, model, tokenizer, labels, pad_token_label_id, mode, prefix=""):
     if args.ImageNormalization:
         transform_test = transforms.Compose([transforms.ToTensor(),
-        transforms.Normalize([0.485,0.456,0.406], [0.229,0.224,0.225])
+        transforms.Normalize([123.675, 116.28, 103.53], [58.395, 57.12, 57.375])
         ])
     else:
         transform_test= transforms.Compose([transforms.ToTensor()]) 
@@ -784,8 +784,6 @@ def image_model_load(args):
         with torch.no_grad():
             result = model(data['img'], data['gt_bboxes'])
         results.extend(result)
-        #print (img_metas)
-        #print ("!!proposa~~~~~~~~~~~~~~~~!",result.size())
         if i>1:
             break
     return results            
@@ -795,7 +793,6 @@ def main():  # noqa C901
     cfg = Config.fromfile(args.config)
     # ## Required parameters
     # args = parser.parse_args()
-
     if (
         os.path.exists(args.output_dir)
         and os.listdir(args.output_dir)
@@ -928,7 +925,7 @@ def main():  # noqa C901
             transform_train = transforms.Compose([
             #transforms.resize(args.scale),
             transforms.ToTensor(),
-            transforms.Normalize([0.485,0.456,0.406], [0.229,0.224,0.225])
+            transforms.Normalize([123.675, 116.28, 103.53], [58.395, 57.12, 57.375])
             ])
         else:
             transform_train = transforms.Compose([transforms.ToTensor()])
