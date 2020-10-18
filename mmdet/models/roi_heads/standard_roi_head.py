@@ -135,7 +135,7 @@ class StandardRoIHead(BaseRoIHead, BBoxTestMixin, MaskTestMixin):
         return losses
     #x, proposal_list, img_metas, rescale=rescale)
     #def bbox_forward_feature(self, x, rois):
-    def bbox_forward_feature(self,x,proposal_list):
+    def bbox_forward_feature(self,x, proposal_list):
         """Box head forward function used in both training and testing."""
         # TODO: a more flexible way to decide which feature maps to use
         rois = bbox2roi(proposal_list)

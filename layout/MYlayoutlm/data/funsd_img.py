@@ -84,9 +84,9 @@ class IMFunsdDataset(Dataset):
         #print ("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!",args.scale)
         self.all_bboxes = torch.tensor([args.scale*np.array(f.boxes) for f in features], dtype=torch.long)
         if args.fp16 and mode == "train":
-            self.gt_bboxes = torch.tensor([(args.scale*np.array(f.actual_bboxes)[:,index]).astype(int)  for f in features], dtype=torch.float16)
+            self.gt_bboxes = torch.tensor([(args.scale*np.array(f.actual_bboxes)).astype(int)  for f in features], dtype=torch.float16)
         else:
-            self.gt_bboxes = torch.tensor([(args.scale*np.array(f.actual_bboxes)[:,index]).astype(int)  for f in features], dtype=torch.float)
+            self.gt_bboxes = torch.tensor([(args.scale*np.array(f.actual_bboxes)).astype(int)  for f in features], dtype=torch.float)
         if mode == "train":
             self.image_paths = [os.path.join(args.data_dir,'training_data/images',f.file_name) for f in features]
         else:

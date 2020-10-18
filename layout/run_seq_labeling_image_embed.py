@@ -74,9 +74,7 @@ from mmdet.models import build_detector
 ##############
 from mmdet.core import (bbox2roi, bbox_mapping, merge_aug_bboxes,
                         merge_aug_masks, multiclass_nms)
-
 logger = logging.getLogger(__name__)
-
 ALL_MODELS = sum(
     (
         tuple(conf.pretrained_config_archive_map.keys())
@@ -84,38 +82,29 @@ ALL_MODELS = sum(
     ),
     (),
 )
-
 MODEL_CLASSES = {
     "bert": (BertConfig, BertForTokenClassification, BertTokenizer),
     "roberta": (RobertaConfig, RobertaForTokenClassification, RobertaTokenizer),
     "layoutlm": (LayoutlmConfig, LayoutlmForTokenClassification, BertTokenizer),
 }
-
-
 def set_seed(args):
     random.seed(args.seed)
     np.random.seed(args.seed)
     torch.manual_seed(args.seed)
     if args.n_gpu > 0:
         torch.cuda.manual_seed_all(args.seed)
-
-
 def collate_fn(data):
     batch = [i for i in zip(*data)]
     for i in range(len(batch)):
         if i < len(batch) - 2:
             batch[i] = torch.stack(batch[i], 0)
     return tuple(batch)
-
-
 def get_labels(path):
     with open(path, "r") as f:
         labels = f.read().splitlines()
     if "O" not in labels:
         labels = ["O"] + labels
     return labels
-
-
 def train(  # noqa C901
     args, train_dataset, model, tokenizer, labels, pad_token_label_id
 ):
@@ -135,7 +124,6 @@ def train(  # noqa C901
         batch_size=args.train_batch_size,
         collate_fn=None,
     )
-
     if args.max_steps > 0:
         t_total = args.max_steps
         args.num_train_epochs = (
@@ -149,7 +137,6 @@ def train(  # noqa C901
             // args.gradient_accumulation_steps
             * args.num_train_epochs
         )
-
     # Prepare optimizer and schedule (linear warmup and decay)
     no_decay = ["bias", "LayerNorm.weight"]
     optimizer_grouped_parameters = [
@@ -186,7 +173,6 @@ def train(  # noqa C901
         model, optimizer = amp.initialize(
             model, optimizer, opt_level=args.fp16_opt_level
         )
-
     # multi-gpu training (should be after apex fp16 initialization)
     if args.n_gpu > 1:
         model = torch.nn.DataParallel(model)
@@ -199,7 +185,6 @@ def train(  # noqa C901
             output_device=args.local_rank,
             find_unused_parameters=True,
         )
-
     # Train!
     logger.info("***** Running training *****")
     logger.info("  Num examples = %d", len(train_dataset))
@@ -215,7 +200,6 @@ def train(  # noqa C901
     )
     logger.info("  Gradient Accumulation steps = %d", args.gradient_accumulation_steps)
     logger.info("  Total optimization steps = %d", t_total)
-
     global_step = 0
     tr_loss, logging_loss = 0.0, 0.0
     model.zero_grad()
@@ -228,7 +212,6 @@ def train(  # noqa C901
             train_dataloader, desc="Iteration", disable=args.local_rank not in [-1, 0]
         )
         for step, batch in enumerate(epoch_iterator):
-
             model.train()
             inputs = {
                 "input_ids": batch[0].to(args.device),
@@ -245,7 +228,6 @@ def train(  # noqa C901
             outputs = model(**inputs)
             # model outputs are always tuple in pytorch-transformers (see doc)
             loss = outputs[0]
-
             if args.n_gpu > 1:
                 loss = loss.mean()  # mean() to average on multi-gpu parallel training
             if args.gradient_accumulation_steps > 1:
@@ -256,10 +238,7 @@ def train(  # noqa C901
                     scaled_loss.backward()
             else:
                 loss.backward()
-            # for k, v in model.named_parameters():
-            #     if v.requires_grad:
-            #         print (k)
-
+            
             tr_loss += loss.item()
             if (step + 1) % args.gradient_accumulation_steps == 0:
                 if args.fp16:
@@ -274,7 +253,6 @@ def train(  # noqa C901
                 scheduler.step()  # Update learning rate schedule
                 model.zero_grad()
                 global_step += 1
-
                 if (
                     args.local_rank in [-1, 0]
                     and args.logging_steps > 0
@@ -303,7 +281,6 @@ def train(  # noqa C901
                         global_step,
                     )
                     logging_loss = tr_loss
-
                 if (
                     args.local_rank in [-1, 0]
                     and args.save_steps > 0
@@ -322,20 +299,15 @@ def train(  # noqa C901
                     tokenizer.save_pretrained(output_dir)
                     torch.save(args, os.path.join(output_dir, "training_args.bin"))
                     logger.info("Saving model checkpoint to %s", output_dir)
-
             if args.max_steps > 0 and global_step > args.max_steps:
                 epoch_iterator.close()
                 break
         if args.max_steps > 0 and global_step > args.max_steps:
             train_iterator.close()
             break
-
     if args.local_rank in [-1, 0]:
         tb_writer.close()
-
     return global_step, tr_loss / global_step
-
-
 def evaluate(args, model, tokenizer, labels, pad_token_label_id, mode, prefix=""):
     if args.ImageNormalization:
         transform_test = transforms.Compose([transforms.ToTensor(),
@@ -353,8 +325,6 @@ def evaluate(args, model, tokenizer, labels, pad_token_label_id, mode, prefix=""
         batch_size=args.eval_batch_size,
         collate_fn=None,
     )
-
-    # Eval!
     logger.info("***** Running evaluation %s *****", prefix)
     logger.info("  Num examples = %d", len(eval_dataset))
     logger.info("  Batch size = %d", args.eval_batch_size)
@@ -381,12 +351,10 @@ def evaluate(args, model, tokenizer, labels, pad_token_label_id, mode, prefix=""
             )  # RoBERTa don"t use segment_ids
             outputs = model(**inputs)
             tmp_eval_loss, logits = outputs[:2]
-
             if args.n_gpu > 1:
                 tmp_eval_loss = (
                     tmp_eval_loss.mean()
                 )  # mean() to average on multi-gpu parallel evaluating
-
             eval_loss += tmp_eval_loss.item()
         nb_eval_steps += 1
         if preds is None:
@@ -397,41 +365,34 @@ def evaluate(args, model, tokenizer, labels, pad_token_label_id, mode, prefix=""
             out_label_ids = np.append(
                 out_label_ids, inputs["labels"].detach().cpu().numpy(), axis=0
             )
-
     eval_loss = eval_loss / nb_eval_steps
     preds = np.argmax(preds, axis=2)
-
     label_map = {i: label for i, label in enumerate(labels)}
-
     out_label_list = [[] for _ in range(out_label_ids.shape[0])]
     preds_list = [[] for _ in range(out_label_ids.shape[0])]
-
     for i in range(out_label_ids.shape[0]):
         for j in range(out_label_ids.shape[1]):
             if out_label_ids[i, j] != pad_token_label_id:
                 out_label_list[i].append(label_map[out_label_ids[i][j]])
                 preds_list[i].append(label_map[preds[i][j]])
-
     results = {
         "loss": eval_loss,
         "precision": precision_score(out_label_list, preds_list),
         "recall": recall_score(out_label_list, preds_list),
         "f1": f1_score(out_label_list, preds_list),
     }
-
     report = classification_report(out_label_list, preds_list)
     logger.info("\n" + report)
-
     logger.info("***** Eval results %s *****", prefix)
     for key in sorted(results.keys()):
         logger.info("  %s = %s", key, str(results[key]))
-
     return results, preds_list
 
 def parse_args():
     parser = argparse.ArgumentParser(
         description='MMDet test (and eval) a model')
     parser.add_argument('--image-pretrain-checkpoint', help='checkpoint file')
+    parser.add_argument('--vision-config', help='config')
     parser.add_argument('--out', help='output result file in pickle format')
     parser.add_argument(
         '--fuse-conv-bn',
@@ -521,7 +482,6 @@ def parse_args():
         required=True,
         help="The output directory where the model predictions and checkpoints will be written.",
     )
-
     ## Other parameters
     parser.add_argument(
         "--scale", default=0.5, type=float, help="scale if we apply some."
@@ -699,92 +659,7 @@ def parse_args():
         warnings.warn('--options is deprecated in favor of --eval-options')
         args.eval_options = args.options
 
-    return args
-
-
-def image_model_load(args):
-    if args.eval and args.format_only:
-        raise ValueError('--eval and --format_only cannot be both specified')
-
-    if args.out is not None and not args.out.endswith(('.pkl', '.pickle')):
-        raise ValueError('The output file must be a pkl file.')
-    print ("!!!!!!!!!!!!!!!!!!!!!!!!!!",args.config)
-    if args.cfg_options is not None:
-        cfg.merge_from_dict(args.cfg_options)
-    # import modules from string list.
-    if cfg.get('custom_imports', None):
-        from mmcv.utils import import_modules_from_strings
-        import_modules_from_strings(**cfg['custom_imports'])
-    # set cudnn_benchmark
-    if cfg.get('cudnn_benchmark', False):
-        torch.backends.cudnn.benchmark = True
-    cfg.model.pretrained = None
-    if cfg.model.get('neck'):
-        if isinstance(cfg.model.neck, list):
-            for neck_cfg in cfg.model.neck:
-                if neck_cfg.get('rfp_backbone'):
-                    if neck_cfg.rfp_backbone.get('pretrained'):
-                        neck_cfg.rfp_backbone.pretrained = None
-        elif cfg.model.neck.get('rfp_backbone'):
-            if cfg.model.neck.rfp_backbone.get('pretrained'):
-                cfg.model.neck.rfp_backbone.pretrained = None
-
-    #in case the test dataset is concatenated
-    if isinstance(cfg.data.test, dict):
-        cfg.data.test.test_mode = True
-    elif isinstance(cfg.data.test, list):
-        for ds_cfg in cfg.data.test:
-            ds_cfg.test_mode = True
-
-    # init distributed env first, since logger depends on the dist info.
-    if args.launcher == 'none':
-        distributed = False
-    else:
-        distributed = True
-        init_dist(args.launcher, **cfg.dist_params)
-
-    # build the dataloader
-    samples_per_gpu = cfg.data.test.pop('samples_per_gpu', 1)
-    if samples_per_gpu > 1:
-        # Replace 'ImageToTensor' to 'DefaultFormatBundle'
-        cfg.data.test.pipeline = replace_ImageToTensor(cfg.data.test.pipeline)
-    dataset = build_dataset(cfg.data.train)
-    data_loader = build_dataloader(
-        dataset,
-        samples_per_gpu=samples_per_gpu,
-        workers_per_gpu=cfg.data.workers_per_gpu,
-        dist=distributed,
-        shuffle=False)
-    # build the model and load checkpoint
-    print (cfg.model,"\n",cfg.test_cfg)
-    model = build_detector(cfg.model, train_cfg=cfg.train_cfg, test_cfg=cfg.test_cfg)
-    fp16_cfg = cfg.get('fp16', None)
-    if fp16_cfg is not None:
-        wrap_fp16_model(model)
-    #checkpoint = load_checkpoint(model, args.checkpoint, map_location='cpu')
-    if args.fuse_conv_bn:
-        model = fuse_conv_bn(model)
-    # old versions did not save class info in checkpoints, this walkaround is
-    #print (model.CLASSES)
-    model = MMDataParallel(model, device_ids=[0])
-    # outputs = single_gpu_test(model, data_loader, args.show, args.show_dir,
-    #                               args.show_score_thr,return_loss=True)
-
-    # model.eval()
-    results = []
-    dataset = data_loader.dataset
-    prog_bar = mmcv.ProgressBar(len(dataset))###################<=======
-    for i, data in enumerate(data_loader):
-        print ("==================================================")
-        print (data['gt_bboxes'].data[0][0].type())
-        
-        print ("==================================================")
-        with torch.no_grad():
-            result = model(data['img'], data['gt_bboxes'])
-        results.extend(result)
-        if i>1:
-            break
-    return results            
+    return args      
 def main():  # noqa C901
     parser = argparse.ArgumentParser()
     args = parse_args()
@@ -804,14 +679,12 @@ def main():  # noqa C901
         else:
             if args.local_rank in [-1, 0]:
                 shutil.rmtree(args.output_dir)
-
     if not os.path.exists(args.output_dir) and (args.do_eval or args.do_predict):
         raise ValueError(
             "Output directory ({}) does not exist. Please train and save the model before inference stage.".format(
                 args.output_dir
             )
         )
-
     if (
         not os.path.exists(args.output_dir)
         and args.do_train
@@ -871,8 +744,6 @@ def main():  # noqa C901
     # Load pretrained model and tokenizer
     if args.local_rank not in [-1, 0]:
         torch.distributed.barrier()  # Make sure only the first process in distributed training will download model & vocab
-    
-################################
     args.model_type = args.model_type.lower()
     config_class, model_class, tokenizer_class = MODEL_CLASSES[args.model_type]
     #  "layoutlm": (LayoutlmConfig, LayoutlmForTokenClassification, BertTokenizer),
@@ -881,8 +752,6 @@ def main():  # noqa C901
         num_labels=num_labels,
         cache_dir=args.cache_dir if args.cache_dir else None,
     )
-    #model_class = LayoutlmForTokenClassification(config,cfg)
-    print (config)
     tokenizer = tokenizer_class.from_pretrained(
         args.tokenizer_name if args.tokenizer_name else args.model_name_or_path,
         do_lower_case=args.do_lower_case,
@@ -895,16 +764,10 @@ def main():  # noqa C901
         args=args,
         cache_dir=args.cache_dir if args.cache_dir else None,
     )
-
-
-    #print (model)
     if args.local_rank == 0:
         torch.distributed.barrier()  # Make sure only the first process in distributed training will download model & vocab
-
     model.to(args.device)
-
     logger.info("Training/evaluation parameters %s", args)
-
     # Training
     if args.do_train:
         if args.ImageNormalization:
@@ -923,13 +786,11 @@ def main():  # noqa C901
             args, train_dataset, model, tokenizer, labels, pad_token_label_id
         )
         logger.info(" global_step = %s, average loss = %s", global_step, tr_loss)
-
     # Saving best-practices: if you use defaults names for the model, you can reload it using from_pretrained()
     if args.do_train and (args.local_rank == -1 or torch.distributed.get_rank() == 0):
         # Create output directory if needed
         if not os.path.exists(args.output_dir) and args.local_rank in [-1, 0]:
             os.makedirs(args.output_dir)
-
         logger.info("Saving model checkpoint to %s", args.output_dir)
         # Save a trained model, configuration and tokenizer using `save_pretrained()`.
         # They can then be reloaded using `from_pretrained()`
@@ -938,10 +799,8 @@ def main():  # noqa C901
         )  # Take care of distributed/parallel training
         model_to_save.save_pretrained(args.output_dir)
         tokenizer.save_pretrained(args.output_dir)
-
         # Good practice: save your training arguments together with the trained model
         torch.save(args, os.path.join(args.output_dir, "training_args.bin"))
-
     # Evaluation
     results = {}
     if args.do_eval and args.local_rank in [-1, 0]:
@@ -982,7 +841,6 @@ def main():  # noqa C901
         with open(output_eval_file, "w") as writer:
             for key in sorted(results.keys()):
                 writer.write("{} = {}\n".format(key, str(results[key])))
-
     if args.do_predict and args.local_rank in [-1, 0]:
         tokenizer = tokenizer_class.from_pretrained(
             args.model_name_or_path, do_lower_case=args.do_lower_case
@@ -1024,9 +882,6 @@ def main():  # noqa C901
                             "Maximum sequence length exceeded: No prediction for '%s'.",
                             line.split()[0],
                         )
-
     return results
-
-
 if __name__ == "__main__":
     main()

@@ -1,32 +1,27 @@
 import logging
-
 import torch
 from torch import nn
 from torch.nn import CrossEntropyLoss, MSELoss
 from transformers import BertConfig, BertModel, BertPreTrainedModel
 from transformers.modeling_bert import BertLayerNorm
-
+from mmdet.apis import init_detector_train
 # from mmdet.models import build_detector
-from mmdet.apis import init_detector
 from mmcv.runner import (get_dist_info, init_dist, load_checkpoint,
                          wrap_fp16_model)
 
 logger = logging.getLogger(__name__)
-
 LAYOUTLM_PRETRAINED_MODEL_ARCHIVE_MAP = {}
-
 LAYOUTLM_PRETRAINED_CONFIG_ARCHIVE_MAP = {}
-
-
 class LayoutlmConfig(BertConfig):
     pretrained_config_archive_map = LAYOUTLM_PRETRAINED_CONFIG_ARCHIVE_MAP
     model_type = "bert"
-
     def __init__(self, max_2d_position_embeddings=1024, **kwargs):
         super().__init__(**kwargs)
         self.max_2d_position_embeddings = max_2d_position_embeddings
         self.model = kwargs['vision_model']
         self.test_cfg = kwargs['vision_test_cfg']
+        self.train_cfg = kwargs['vision_train_cfg']
+
 
 class LayoutlmEmbeddings(nn.Module):
     def __init__(self, config):
@@ -104,19 +99,14 @@ class LayoutlmEmbeddings(nn.Module):
         embeddings = self.dropout(embeddings)
         return embeddings
 
-
 class LayoutlmModel(BertModel):
-    
     config_class = LayoutlmConfig
     pretrained_model_archive_map = LAYOUTLM_PRETRAINED_MODEL_ARCHIVE_MAP
     base_model_prefix = "bert"
-
     def __init__(self, config):
-        
         super(LayoutlmModel, self).__init__(config)
         self.embeddings = LayoutlmEmbeddings(config)
         self.init_weights()
-        
     def forward(
         self,
         input_ids,
@@ -194,13 +184,11 @@ class FasterRCNN(torch.nn.Module):
         super(FasterRCNN, self).__init__()
         # import modules from string list.
         torch.backends.cudnn.benchmark = True
-        
-        self.model = init_detector(cfg, args.image_pretrain_checkpoint)
+        self.model = init_detector_train(cfg, args.image_pretrain_checkpoint)
         logger.info(self.model)
         self.fc1 = nn.Linear(1024, 1024)
         # self.relu = nn.ReLU(inplace=True)
         # self.fc2 = nn.Linear(2048, 1024)
-    
     def forward(self,images,gt_bboxes):
         """
         Args:
@@ -210,7 +198,6 @@ class FasterRCNN(torch.nn.Module):
             gt_bboxes (list[Tensor]): Ground truth bboxes for each image with
                 shape (num_gts, 4) in [tl_x, tl_y, br_x, br_y] format.       
         """
-
         result =  self.model(images, gt_bboxes)
         return self.fc1(result)
 

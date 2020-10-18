@@ -8,10 +8,8 @@ from .base_roi_extractor import BaseRoIExtractor
 @ROI_EXTRACTORS.register_module()
 class GenericRoIExtractor(BaseRoIExtractor):
     """Extract RoI features from all level feature maps levels.
-
     This is the implementation of `A novel Region of Interest Extraction Layer
     for Instance Segmentation <https://arxiv.org/abs/2004.13665>`_.
-
     Args:
         aggregation (str): The method to aggregate multiple feature maps.
             Options are 'sum', 'concat'. Default: 'sum'.
@@ -20,7 +18,6 @@ class GenericRoIExtractor(BaseRoIExtractor):
         kwargs (keyword arguments): Arguments that are the same
             as :class:`BaseRoIExtractor`.
     """
-
     def __init__(self,
                  aggregation='sum',
                  pre_cfg=None,
@@ -73,6 +70,7 @@ class GenericRoIExtractor(BaseRoIExtractor):
                 roi_feats[:, start_channels:end_channels] = roi_feats_t
             # update channels starting position
             start_channels = end_channels
+            
         # check if concat channels match at the end
         if self.aggregation == 'concat':
             assert start_channels == self.out_channels

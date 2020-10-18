@@ -12,6 +12,42 @@ from mmdet.core import get_classes
 from mmdet.datasets.pipelines import Compose
 from mmdet.models import build_detector
 
+def init_detector_train(config, checkpoint=None, device='cuda:0'):
+    """Initialize a detector from config file.
+
+    Args:
+        config (str or :obj:`mmcv.Config`): Config file path or the config
+            object.
+        checkpoint (str, optional): Checkpoint path. If left as None, the model
+            will not load any weights.
+
+    Returns:
+        nn.Module: The constructed detector.
+    """
+    # print (config.model)
+    # print (config["model"])
+    if isinstance(config, str):
+        config = mmcv.Config.fromfile(config)
+    elif isinstance(config.model, dict):
+        config.model = mmcv.ConfigDict(config.model)
+        config.train_cfg = mmcv.ConfigDict(config.train_cfg)
+        config.test_cfg = mmcv.ConfigDict(config.test_cfg)
+    elif not isinstance(config, mmcv.Config):
+        raise TypeError('config must be a filename or Config object, '
+                        f'but got {type(config)}')
+    model = build_detector(config.model, test_cfg=config.test_cfg)
+    if checkpoint is not None:
+        map_loc = 'cpu' if device == 'cpu' else None
+        checkpoint = load_checkpoint(model, checkpoint, map_location=map_loc)
+        if 'CLASSES' in checkpoint['meta']:
+            model.CLASSES = checkpoint['meta']['CLASSES']
+        else:
+            warnings.simplefilter('once')
+            warnings.warn('Class names are not saved in the checkpoint\'s '
+                          'meta data, use COCO classes by default.')
+            model.CLASSES = get_classes('coco')
+    model.cfg = config  # save the config in the model for convenience
+    return model
 
 def init_detector(config, checkpoint=None, device='cuda:0'):
     """Initialize a detector from config file.

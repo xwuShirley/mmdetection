@@ -1,0 +1,83 @@
+{
+    "attention_probs_dropout_prob": 0.1,
+    "finetuning_task": null,
+    "hidden_act": "gelu",
+    "hidden_dropout_prob": 0.1,
+    "hidden_size": 1024,
+    "initializer_range": 0.02,
+    "intermediate_size": 4096,
+    "is_decoder": false,
+    "layer_norm_eps": 1e-12,
+    "max_position_embeddings": 512,
+    "max_2d_position_embeddings": 1024,
+    "num_attention_heads": 16,
+    "num_hidden_layers": 24,
+    "num_labels": 2,
+    "output_attentions": false,
+    "output_hidden_states": false,
+    "output_past": true,
+    "pruned_heads": {},
+    "torchscript": false,
+    "type_vocab_size": 2,
+    "use_bfloat16": false,
+    "vocab_size": 30522,
+    "vision_model" :{
+            "type" : "FasterRCNN",
+            "backbone" : {
+                "type" : "ResNet",
+                "depth" : 50,
+                "num_stages" : 4,
+                "out_indices" : [0, 1, 2, 3],
+                "frozen_stages" : 0,
+                "norm_cfg" : {
+                    "type" :"BN", 
+                    "requires_grad" : true
+                },
+                "norm_eval" : 1,
+                "style" : "pytorch"
+            },
+            "neck" : {
+                "type" : "FPN",
+                "in_channels" : [256, 512, 1024, 2048],
+                "out_channels" : 256,
+                "num_outs" : 5
+            },
+            "rpn_head" : null,
+            "roi_head" : {
+                "type" : "StandardRoIHead",
+                "bbox_roi_extractor" : {
+                    "type" : "SingleRoIExtractor",
+                    "roi_layer" : {"type" : "RoIAlign", "output_size" : 7, "sampling_ratio" :0},
+                    "out_channels" : 256,
+                    "featmap_strides" : [4, 8, 16, 32]
+                },
+                "bbox_head" : {
+                    "type" :"Shared2FCBBoxHeadLayout", 
+                    "in_channels" : 256,
+                    "fc_out_channels" : 1024,
+                    "roi_feat_size" : 7,
+                    "num_classes" : 80,
+                    "reg_class_agnostic" : false,
+                    "with_reg" : false,
+                    "with_cls" : false
+                }
+                }
+            },
+    "vision_test_cfg": {
+            "rpn" : null,
+            "rcnn" : {}},
+    "vision_train_cfg": {
+            "rpn" : null,
+            "rcnn" : {
+                "assigner":{
+                    "type": "MaxIoUAssigner",
+                    "pos_iou_thr":0.5,
+                    "neg_iou_thr":0.5,
+                    "min_pos_iou":0.5,
+                    "match_low_quality":false,
+                    "ignore_iof_thr":-1 
+                },
+            "sampler":null
+            }
+        }
+}

@@ -57,6 +57,7 @@ class SingleRoIExtractor(BaseRoIExtractor):
         num_levels = len(feats)
         roi_feats = feats[0].new_zeros(
             rois.size(0), self.out_channels, *out_size)
+        rois = rois.type_as(roi_feats)
         # TODO: remove this when parrots supports
         if torch.__version__ == 'parrots':
             roi_feats.requires_grad = True
