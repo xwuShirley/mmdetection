@@ -25,16 +25,15 @@ class LayoutlmConfig(BertConfig):
     def __init__(self, max_2d_position_embeddings=1024, **kwargs):
         super().__init__(**kwargs)
         self.max_2d_position_embeddings = max_2d_position_embeddings
-
+        self.model = kwargs['vision_model']
+        self.test_cfg = kwargs['vision_test_cfg']
 
 class LayoutlmEmbeddings(nn.Module):
     def __init__(self, config):
         super(LayoutlmEmbeddings, self).__init__()
-        #print ("!!!!!!!!!!!!!!!!!!!!!",config.vocab_size, config.hidden_size,)
         self.word_embeddings = nn.Embedding(
             config.vocab_size, config.hidden_size, padding_idx=0
         )
-        #print ("!!!!!!!!!!!!!!!!!!!!!",self.word_embeddings)
         self.position_embeddings = nn.Embedding(
             config.max_position_embeddings, config.hidden_size
         )
@@ -53,10 +52,6 @@ class LayoutlmEmbeddings(nn.Module):
         self.token_type_embeddings = nn.Embedding(
             config.type_vocab_size, config.hidden_size
         )
-        # self.image_embeddings = nn.Embedding(
-        #     config.vocab_size, config.hidden_size, padding_idx=0
-        # )        
-
         # self.LayerNorm is not snake-cased to stick with TensorFlow model variable name and be able to load
         # any TensorFlow checkpoint file
         self.LayerNorm = BertLayerNorm(config.hidden_size, eps=config.layer_norm_eps)
@@ -81,7 +76,6 @@ class LayoutlmEmbeddings(nn.Module):
         #image_embeddings = self.image_embeddings(input_ids,bbox)
 
         words_embeddings = self.word_embeddings(input_ids)
-        #print ("!!!!!!!!!!!!!!!!!!!!!!!",words_embeddings.size())
         position_embeddings = self.position_embeddings(position_ids)
         left_position_embeddings = self.x_position_embeddings(bbox[:, :, 0])
         upper_position_embeddings = self.y_position_embeddings(bbox[:, :, 1])
@@ -194,43 +188,22 @@ class LayoutlmModel(BertModel):
         ]  # add hidden_states and attentions if they are here
         return outputs  # sequence_output, pooled_output, (hidden_states), (attentions)
 
+
 class FasterRCNN(torch.nn.Module):
-    def __init__(self,cfg,args):
+    def __init__(self, cfg, args):
         super(FasterRCNN, self).__init__()
         # import modules from string list.
-        if cfg.get('custom_imports', None):
-            from mmcv.utils import import_modules_from_strings
-            import_modules_from_strings(**cfg['custom_imports'])
-        # set cudnn_benchmark
-        if cfg.get('cudnn_benchmark', False):
-            torch.backends.cudnn.benchmark = True
-        cfg.model.pretrained = None
-        if cfg.model.get('neck'):
-            if isinstance(cfg.model.neck, list):
-                for neck_cfg in cfg.model.neck:
-                    if neck_cfg.get('rfp_backbone'):
-                        if neck_cfg.rfp_backbone.get('pretrained'):
-                            neck_cfg.rfp_backbone.pretrained = None
-            elif cfg.model.neck.get('rfp_backbone'):
-                if cfg.model.neck.rfp_backbone.get('pretrained'):
-                    cfg.model.neck.rfp_backbone.pretrained = None
-        #self.model = build_detector(cfg.model, train_cfg=cfg.train_cfg, test_cfg=cfg.test_cfg)
-        # if args.eval:
-        #     ??
-        # else:
-        self.model = init_detector(cfg, args.checkpoint)
-        logger.info("===========================================>\nTHIS IS how we load the image detector (FasterRCNN or MASK-RCNN) models, we don't use from_pretrain, instead we directly call the mmdetection and load it here")
+        torch.backends.cudnn.benchmark = True
+        
+        self.model = init_detector(cfg, args.image_pretrain_checkpoint)
         logger.info(self.model)
         self.fc1 = nn.Linear(1024, 1024)
         # self.relu = nn.ReLU(inplace=True)
         # self.fc2 = nn.Linear(2048, 1024)
-        fp16_cfg = cfg.get('fp16', None)
-        if fp16_cfg is not None:
-            wrap_fp16_model(model)
+    
     def forward(self,images,gt_bboxes):
-        # output = model(images)
         """
-       Args:
+        Args:
             img (Tensor): of shape (N, C, H, W) encoding input images.
                 Typically these should be mean centered and std scaled.
 
@@ -238,8 +211,7 @@ class FasterRCNN(torch.nn.Module):
                 shape (num_gts, 4) in [tl_x, tl_y, br_x, br_y] format.       
         """
 
-        result =  self.model(images,gt_bboxes)
-        
+        result =  self.model(images, gt_bboxes)
         return self.fc1(result)
 
 class LayoutlmForTokenClassification(BertPreTrainedModel):
@@ -247,14 +219,14 @@ class LayoutlmForTokenClassification(BertPreTrainedModel):
     pretrained_model_archive_map = LAYOUTLM_PRETRAINED_MODEL_ARCHIVE_MAP
     base_model_prefix = "bert"
 
-    def __init__(self,config,cfg,args):
-        super().__init__(config,cfg,args)
+    def __init__(self,config, args):
+        super().__init__(config, args)
         self.num_labels = config.num_labels
         self.bert = LayoutlmModel(config)
-        self.fasterRCNN  = FasterRCNN(cfg,args)
         self.dropout = nn.Dropout(config.hidden_dropout_prob)
         self.classifier = nn.Linear(config.hidden_size, config.num_labels)
         self.init_weights()
+        self.fasterRCNN  = FasterRCNN(config, args)
 
     def forward(
         self,
@@ -281,7 +253,7 @@ class LayoutlmForTokenClassification(BertPreTrainedModel):
         sequence_output = outputs[0]
         sequence_output = self.dropout(sequence_output)
         #print (images.size())
-        image_output = self.fasterRCNN(images,gt_bboxes) #<=================================
+        image_output = self.fasterRCNN(images, gt_bboxes) #<=================================
         image_output = self.dropout(image_output)
 
         logits = self.classifier(sequence_output+image_output)

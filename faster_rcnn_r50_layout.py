@@ -1,6 +1,6 @@
 model = dict(
     type='FasterRCNN',
-    pretrained='torchvision://resnet50',
+    pretrained='/home/yinhan/epoch_50.pth',
     backbone=dict(
         type='ResNet',
         depth=50,
@@ -28,11 +28,7 @@ model = dict(
             in_channels=256,
             fc_out_channels=1024,
             roi_feat_size=7,
-            num_classes=16,#<=======================
-            bbox_coder=dict(
-                type='DeltaXYWHBBoxCoder',
-                target_means=[0., 0., 0., 0.],
-                target_stds=[0.1, 0.1, 0.2, 0.2]),
+            num_classes=80,#<=======================
             reg_class_agnostic=False,
             with_reg = False,
             with_cls = False,

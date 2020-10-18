@@ -27,6 +27,9 @@ def init_detector(config, checkpoint=None, device='cuda:0'):
     """
     if isinstance(config, str):
         config = mmcv.Config.fromfile(config)
+    elif isinstance(config.model, dict):
+        config.model = mmcv.ConfigDict(config.model)
+        config.test_cfg = mmcv.ConfigDict(config.test_cfg)
     elif not isinstance(config, mmcv.Config):
         raise TypeError('config must be a filename or Config object, '
                         f'but got {type(config)}')

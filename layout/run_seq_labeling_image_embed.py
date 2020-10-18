@@ -431,8 +431,7 @@ def evaluate(args, model, tokenizer, labels, pad_token_label_id, mode, prefix=""
 def parse_args():
     parser = argparse.ArgumentParser(
         description='MMDet test (and eval) a model')
-    parser.add_argument('config', help='test config file path')
-    parser.add_argument('checkpoint', help='checkpoint file')
+    parser.add_argument('--image-pretrain-checkpoint', help='checkpoint file')
     parser.add_argument('--out', help='output result file in pickle format')
     parser.add_argument(
         '--fuse-conv-bn',
@@ -710,7 +709,6 @@ def image_model_load(args):
     if args.out is not None and not args.out.endswith(('.pkl', '.pickle')):
         raise ValueError('The output file must be a pkl file.')
     print ("!!!!!!!!!!!!!!!!!!!!!!!!!!",args.config)
-    cfg = Config.fromfile(args.config)
     if args.cfg_options is not None:
         cfg.merge_from_dict(args.cfg_options)
     # import modules from string list.
@@ -790,7 +788,6 @@ def image_model_load(args):
 def main():  # noqa C901
     parser = argparse.ArgumentParser()
     args = parse_args()
-    cfg = Config.fromfile(args.config)
     # ## Required parameters
     # args = parser.parse_args()
     if (
@@ -874,15 +871,6 @@ def main():  # noqa C901
     # Load pretrained model and tokenizer
     if args.local_rank not in [-1, 0]:
         torch.distributed.barrier()  # Make sure only the first process in distributed training will download model & vocab
-###########################load image model
-    # build the model and load checkpoint
-    # image_model = image_model_load(args)
-    cfg = Config.fromfile(args.config)
-    if args.cfg_options is not None:
-        cfg.merge_from_dict(args.cfg_options)
-
-    # cfg = Config.fromfile(args.config)
-    # print (image_model)
     
 ################################
     args.model_type = args.model_type.lower()
@@ -904,7 +892,6 @@ def main():  # noqa C901
         args.model_name_or_path,
         from_tf=bool(".ckpt" in args.model_name_or_path),
         config=config,
-        cfg=cfg,
         args=args,
         cache_dir=args.cache_dir if args.cache_dir else None,
     )
@@ -977,7 +964,6 @@ def main():  # noqa C901
             global_step = checkpoint.split("-")[-1] if len(checkpoints) > 1 else ""
             model = model_class.from_pretrained(checkpoint,\
                                                 config=config,\
-                                                cfg=cfg,\
                                                 args=args)
             model.to(args.device)
             result, _ = evaluate(
